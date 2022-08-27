@@ -43,6 +43,22 @@ Confirm that the changes were taken by running
  
     sudo apt install build-essential curl libffi-dev libffi7 libgmp-dev libgmp10 libncurses-dev libncurses5 libtinfo5
  
+ Check GHC and Cabal version
+
+    ghc --version
+    cabal --version
+
+My current ghc and cabal versions are GHC 8.10.7 and Cabal 3.6.2.0. If any version mismatch, you can update with:
+
+    ghcup install ghc 8.10.7
+    ghcup install cabal 3.6.2.0
+
+Now set the versions:
+
+    ghcup set ghc 8.10.7
+    ghcup set cabal 3.6.2.0
+
+Re-check your current GHC and Cabal version. If it's still not the correct version, try to restart your terminal.
 
 ### Building Plutus app
 
