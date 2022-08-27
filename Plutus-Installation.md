@@ -1,5 +1,3 @@
-# This repo contains instrunctions to setup the environment for plutus as part of the plutus pioneer program training.
-
 ### HW recommendations:
 
     Ubuntu on VPS, virtualbox or WSL
