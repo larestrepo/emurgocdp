@@ -1,0 +1,69 @@
+cabal-version:      3.0
+name:               emurgoproject
+version:            0.1.0.0
+stability: experimental
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+license: Apache-2.0
+license-files: LICENSE
+author:             Moxie
+
+-- A copyright notice.
+-- copyright:
+-- category:
+-- extra-source-files: CHANGELOG.md
+
+flag defer-plugin-errors
+    description:
+        Defer errors from the plugin, useful for things like Haddock that can't handle it.
+    default: False
+    manual: True
+
+common lang
+    default-language:   Haskell2010
+    ghc-options:
+      -Wall -Wnoncanonical-monad-instances
+      -Wincomplete-uni-patterns -Wincomplete-record-updates
+      -Wredundant-constraints -Widentities -rtsopts
+      -- See Plutus Tx readme
+      -fobject-code -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+    if flag(defer-plugin-errors)
+        ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
+
+library
+    import: lang
+    
+    exposed-modules:
+        Validators.SimpleV
+
+    build-depends:
+      base >= 4.9 && < 5,
+      aeson -any,
+      bytestring -any,
+      containers -any,
+      freer-extras -any,
+      playground-common -any,
+      plutus-contract -any,
+      plutus-ledger -any,
+      plutus-ledger-api -any,
+      plutus-ledger-constraints -any,
+      plutus-tx -any,
+      plutus-tx-plugin -any,
+      plutus-script-utils -any,
+      text -any,
+      lens -any,
+      cardano-api, 
+      cardano-binary,
+      --additionals
+      serialise -any,
+      base16-bytestring,
+      data-default,
+    hs-source-dirs: src
