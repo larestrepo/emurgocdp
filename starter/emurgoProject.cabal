@@ -42,7 +42,8 @@ library
     import: lang
     
     exposed-modules:
-        Validators.SimpleV
+        Validators.SimpleV,
+        Validators.SimpleType
 
     build-depends:
       base >= 4.9 && < 5,
