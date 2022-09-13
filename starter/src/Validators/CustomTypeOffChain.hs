@@ -49,6 +49,7 @@ grab :: forall w s e. PlutusContract.AsContractError e => Integer -> PlutusContr
 grab redeem = do
     if redeem == 300
         then do
+            
                 utxos <- PlutusContract.utxosAt OnChain.address
                 let orefs   = fst <$> Map.toList utxos
                     lookups = Constraints.unspentOutputs utxos      P.<>
@@ -59,6 +60,7 @@ grab redeem = do
                 Monad.void $ PlutusContract.awaitTxConfirmed $ LedgerTx.getCardanoTxId submittedTx
                 PlutusContract.logInfo @P.String $ "collected gifts"
         else PlutusContract.logInfo @P.String $ "Wrong guess"
+
 
 endpoints :: PlutusContract.Contract () GiftSchema DT.Text ()
 endpoints = PlutusContract.awaitPromise (give' `PlutusContract.select` grab') >> endpoints
