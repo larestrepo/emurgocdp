@@ -67,4 +67,5 @@ library
       serialise -any,
       base16-bytestring,
       data-default,
+      openapi3
     hs-source-dirs: src
