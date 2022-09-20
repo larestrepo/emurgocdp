@@ -26,6 +26,7 @@ import qualified Plutus.V2.Ledger.Contexts                       as Contexts
 import qualified Plutus.Script.Utils.V2.Typed.Scripts.Validators as V2UtilsTypeScripts
 import qualified Prelude                                         as P
 import qualified Ledger                                          (PaymentPubKeyHash, unPaymentPubKeyHash)
+import qualified Plutus.V1.Ledger.Interval                            as LedgerIntervalV1
 
 --3 Onchain code
 
@@ -65,7 +66,7 @@ simpleType d r context =
         signedBeneficiary = Contexts.txSignedBy txinfo $ Ledger.unPaymentPubKeyHash (beneficiary d)
 
         deadlinepassed :: Bool
-        deadlinepassed = True
+        deadlinepassed = LedgerIntervalV1.contains (LedgerIntervalV1.from (deadline d)) (Contexts.txInfoValidRange txinfo)
 
 
 
