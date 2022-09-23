@@ -34,7 +34,7 @@ import qualified Plutus.Contract          as PlutusContract
 import qualified Ledger.Ada               as Ada
 import qualified Ledger.Tx                as LedgerTx
 import qualified Plutus.V2.Ledger.Api                            as LedgerApiV2
-import qualified Ledger                                          (PaymentPubKeyHash)
+import qualified Ledger                                          (PaymentPubKeyHash, Value)
 import qualified Text.Printf              as TextPrintf (printf)
 import qualified Ledger.Constraints       as Constraints
 import qualified Plutus.V1.Ledger.Scripts as ScriptsLedger
@@ -46,6 +46,7 @@ import qualified Beneficiary.BeneficiaryOnChain as OnChain
 
 data StartParams = StartParams 
     {
+        spCreator :: !Ledger.PaymentPubKeyHash,
         spBeneficiary :: !Ledger.PaymentPubKeyHash,
         spDeadline :: !LedgerApiV2.POSIXTime,
         spGuess :: !Integer,
@@ -66,6 +67,7 @@ start :: PlutusContract.AsContractError e => StartParams -> PlutusContract.Contr
 start sp = do
     let d = OnChain.Dat
             {
+                OnChain.creator = spCreator sp,
                 OnChain.beneficiary = spBeneficiary sp,
                 OnChain.deadline = spDeadline sp,
                 OnChain.ddata = spGuess sp
@@ -88,6 +90,7 @@ grab GrabParams{..} = do
         Just (oref, o) -> do
             PlutusContract.logInfo @P.String $ TextPrintf.printf "Redeem utxos %s" (P.show oref)
             let 
+                Just datum = getDatum (oref, o)
                 r = OnChain.Redeem 
                     {
                         OnChain.redeem = grabRedeem
@@ -95,7 +98,8 @@ grab GrabParams{..} = do
                 lookups = Constraints.unspentOutputs (Map.singleton oref o) P.<>
                           Constraints.plutusV2OtherScript OnChain.validator
                 tx = Constraints.mustSpendScriptOutput oref (ScriptsLedger.Redeemer $ PlutusTx.toBuiltinData r) P.<>
-                     Constraints.mustValidateIn (LedgerApiV2.from now)
+                     Constraints.mustValidateIn (LedgerApiV2.from now) P.<>
+                     Constraints.mustPayToPubKey (OnChain.creator datum) (getTotalValuePay o)
                      
             submittedTx <- PlutusContract.submitTxConstraintsWith @OnChain.Simple lookups tx
             Monad.void $ PlutusContract.awaitTxConfirmed $ LedgerTx.getCardanoTxId submittedTx
@@ -134,6 +138,10 @@ findUtxoInValidator pkh n now = do
     let xs = [(oref, o) | (oref, o) <- Map.toList utxos]
         out = findUTXO xs pkh n now
     return out
+
+getTotalValuePay :: LedgerTx.ChainIndexTxOut -> Ledger.Value
+getTotalValuePay o =
+    Ada.toValue $ (Ada.fromValue $ LedgerTx._ciTxOutValue o) `Ada.divide` 10
 
 endpoints :: PlutusContract.Contract () GiftSchema DataText.Text ()
 endpoints = PlutusContract.awaitPromise (start' `PlutusContract.select` grab') >> endpoints

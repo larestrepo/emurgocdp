@@ -28,6 +28,7 @@ trace1 = do
     h3 <- Emulator.activateContractWallet (Wallet.knownWallet 3) OffChain.endpoints
 
     Emulator.callEndpoint @"start" h1 $ OffChain.StartParams {
+        OffChain.spCreator = Wallet.mockWalletPaymentPubKeyHash $ Wallet.knownWallet 3,
         OffChain.spBeneficiary = Wallet.mockWalletPaymentPubKeyHash $ Wallet.knownWallet 2,
         OffChain.spDeadline = TimeSlot.slotToBeginPOSIXTime def 30,
         OffChain.spGuess = 20,
@@ -41,7 +42,7 @@ trace1 = do
     Emulator.callEndpoint @"grab" h2 $ OffChain.GrabParams {
         OffChain.grabRedeem = 30
     }
-    void $ waitNSlots 2
+    void $ waitNSlots 40
     Emulator.callEndpoint @"grab" h2 $ OffChain.GrabParams {
         OffChain.grabRedeem = 20
     }
