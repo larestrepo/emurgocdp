@@ -61,21 +61,33 @@ PlutusTx.unstableMakeIsData ''Dat
 simpleType :: BenParam -> Dat -> Redeem -> Contexts.ScriptContext -> Bool
 simpleType benp d r context = 
     traceIfFalse "Sorry the guess is not correct" (ddata d == redeem r) &&
-    traceIfFalse "Wrong pubkeyhash" signedBeneficiary &&
+    traceIfFalse "Wrong pubkeyhash" signedByBeneficiary &&
     traceIfFalse "Deadline not yet reached"  deadlinepassed &&
     traceIfFalse "Not paid royalties"  calculateRoyalties
     where
         txinfo :: Contexts.TxInfo
         txinfo = Contexts.scriptContextTxInfo context
 
-        signedBeneficiary :: Bool
-        signedBeneficiary = Contexts.txSignedBy txinfo $ Ledger.unPaymentPubKeyHash (beneficiary benp)
+        signedByBeneficiary :: Bool
+        signedByBeneficiary = Contexts.txSignedBy txinfo $ Ledger.unPaymentPubKeyHash (beneficiary benp)
 
         deadlinepassed :: Bool
         deadlinepassed = LedgerIntervalV1.contains (LedgerIntervalV1.from (deadline benp)) (Contexts.txInfoValidRange txinfo)
+        
+        adaroyalties :: Maybe Ada.Ada
+        adaroyalties = do
+            validatedValue <- Contexts.txOutValue . Contexts.txInInfoResolved <$> Contexts.findOwnInput context
+            Just $ Ada.fromValue validatedValue `Ada.divide` 10
+
+        getValuePaidToCreator :: Ada.Ada
+        getValuePaidToCreator = Ada.fromValue $ Contexts.valuePaidTo txinfo (Ledger.unPaymentPubKeyHash (creator benp))
+
+        compareValues :: Ada.Ada -> Maybe Ada.Ada -> Bool
+        -- compareValues Nothing _ = False
+        compareValues vToCreator adaTx = Just (vToCreator) >= adaTx
 
         calculateRoyalties :: Bool
-        calculateRoyalties = validateRoyalties benp txinfo
+        calculateRoyalties = compareValues (getValuePaidToCreator) (adaroyalties)
 
 data Simple
 instance V2UtilsTypeScripts.ValidatorTypes Simple where
@@ -98,21 +110,21 @@ validatorHash = V2UtilsTypeScripts.validatorHash . simpleTypeV
 address :: BenParam -> V1LAddress.Address
 address = V1LAddress.scriptHashAddress . validatorHash
 
-{-# INLINABLE validateRoyalties #-}
-validateRoyalties :: BenParam -> Contexts.TxInfo -> Bool
-validateRoyalties benp txinfo = compareValues (qCreator benp txinfo) (totalValue txinfo)
+-- {-# INLINABLE validateRoyalties #-}
+-- validateRoyalties :: BenParam -> Contexts.TxInfo -> Bool
+-- validateRoyalties benp txinfo = compareValues (qCreator benp txinfo) (totalValue txinfo)
 
--- Get total amount ADA from the transaction
-{-# INLINABLE totalValue #-}
-totalValue :: Contexts.TxInfo -> Ada.Ada
-totalValue txinfo = Ada.fromValue $ Contexts.valueSpent txinfo
+-- -- Get total amount ADA from the transaction
+-- {-# INLINABLE totalValue #-}
+-- totalValue :: Contexts.TxInfo -> Ada.Ada
+-- totalValue txinfo = Ada.fromValue $ Contexts.valueSpent txinfo
 
---Get Value paid to the creator of the contract (10%)
-{-# INLINABLE qCreator #-}
-qCreator :: BenParam -> Contexts.TxInfo -> Ada.Ada
-qCreator benp txinfo = Ada.fromValue $ Contexts.valuePaidTo txinfo (Ledger.unPaymentPubKeyHash (creator benp))
+-- --Get Value paid to the creator of the contract (10%)
+-- {-# INLINABLE qCreator #-}
+-- qCreator :: BenParam -> Contexts.TxInfo -> Ada.Ada
+-- qCreator benp txinfo = Ada.fromValue $ Contexts.valuePaidTo txinfo (Ledger.unPaymentPubKeyHash (creator benp))
 
-{-# INLINABLE compareValues #-}
-compareValues :: Ada.Ada -> Ada.Ada -> Bool
--- compareValues Nothing _ = False
-compareValues valueToCreator valueTotal = valueToCreator >= valueTotal `Ada.divide` 10
+-- {-# INLINABLE compareValues #-}
+-- compareValues :: Ada.Ada -> Ada.Ada -> Bool
+-- -- compareValues Nothing _ = False
+-- compareValues valueToCreator valueTotal = valueToCreator >= valueTotal `Ada.divide` 10

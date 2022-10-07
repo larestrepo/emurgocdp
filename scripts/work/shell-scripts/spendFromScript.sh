@@ -92,24 +92,100 @@ case $input in
         ;;
 esac
 
+# Check if wanted to add additional outputs
+
+
+TO_WALLET_NAME_ARRAY=()
+while true; do
+read -p 'Do you want to add additional outputs? [Y/N]: ' input
+case $input in
+    [yY][eE][sS]|[yY])
+        echo "You say Yes"
+        read -p 'Lovelace to send: ' LOVELACE_TO_SEND
+        read -p 'Receiving wallet name: ' TO_WALLET_NAME
+
+        echo TO_WALLET_NAME
+
+        if [[ $TO_WALLET_NAME != \addr_* ]];
+        then 
+            TO_WALLET_ADDRESS=$(cat $BASE/.priv/wallets/$TO_WALLET_NAME/$TO_WALLET_NAME.payment.addr)
+        else
+            TO_WALLET_ADDRESS=$TO_WALLET_NAME
+        fi
+        TO_WALLET_NAME_ARRAY+='--tx-out '
+        TO_WALLET_NAME_ARRAY+=$TO_WALLET_ADDRESS+$LOVELACE_TO_SEND
+        PAYMENT=$(expr $PAYMENT - $LOVELACE_TO_SEND)
+        ;;
+    [nN][oO]|[nN])
+        echo "You say No"
+        break
+        ;;
+    *)
+        echo "Invalid input..."
+        exit 1
+        ;;
+esac
+done
+
 $CARDANO_CLI query protocol-parameters --testnet-magic $TESTNET_MAGIC > $WORK/transactions/pparams.json
 
-build=($CARDANO_CLI transaction build \
---babbage-era \
---cardano-mode \
---testnet-magic $TESTNET_MAGIC \
-${INVALID_BEFORE_ARRAY} ${INVALID_HEREAFTER_ARRAY} \
---change-address=${FEE_ADDR} \
---tx-in ${SCRIPT_UTXO} \
---tx-in-script-file ${SCRIPT_FILE} \
---tx-in-datum-file $WORK/plutus-scripts/${DATUM_HASH_FILE} \
---tx-in-redeemer-file $WORK/plutus-scripts/${REDEEMER_FILE} \
---tx-in ${COLLATERAL_TX} \
---tx-in-collateral=${COLLATERAL_TX} \
---tx-out ${TO_WALLET_ADDRESS}+${PAYMENT} \
-${REQUIRED_SIGNER_ARRAY} \
---protocol-params-file $WORK/transactions/pparams.json \
---out-file $WORK/transactions/tx.draft)
+#Section to allow the new feature for reference scripts
+
+read -p 'Is the script existing in a reference utxo? [Y/N]: ' input
+case $input in
+    [yY][eE][sS]|[yY])
+        ./currentSlot.sh
+        echo "You say Yes"
+        # echo 'Current epoch is: ' 
+        read -p 'Witness wallet name: ' WITNESS
+        getInputTx ${WITNESS}
+        WITNESS_TX=$SELECTED_UTXO
+        # WITNESS_ADDR=$SELECTED_WALLET_ADDR
+        # WITNESS_NAME=${SELECTED_WALLET_NAME}
+
+        build=($CARDANO_CLI transaction build \
+        --babbage-era \
+        --cardano-mode \
+        --testnet-magic $TESTNET_MAGIC \
+        ${INVALID_BEFORE_ARRAY} ${INVALID_HEREAFTER_ARRAY} \
+        --change-address=${FEE_ADDR} \
+        --tx-in ${SCRIPT_UTXO} \
+        --spending-tx-in-reference ${WITNESS_TX} \
+        --spending-plutus-script-v2 \
+        --spending-reference-tx-in-datum-file $WORK/plutus-scripts/${DATUM_HASH_FILE} \
+        --spending-reference-tx-in-redeemer-file $WORK/plutus-scripts/${REDEEMER_FILE} \
+        --tx-in ${COLLATERAL_TX} \
+        --tx-in-collateral=${COLLATERAL_TX} \
+        --tx-out ${TO_WALLET_ADDRESS}+${PAYMENT} \
+        ${TO_WALLET_NAME_ARRAY} \
+        ${REQUIRED_SIGNER_ARRAY} \
+        --protocol-params-file $WORK/transactions/pparams.json \
+        --out-file $WORK/transactions/tx.draft)
+        ;;
+    [nN][oO]|[nN])
+        build=($CARDANO_CLI transaction build \
+        --babbage-era \
+        --cardano-mode \
+        --testnet-magic $TESTNET_MAGIC \
+        ${INVALID_BEFORE_ARRAY} ${INVALID_HEREAFTER_ARRAY} \
+        --change-address=${FEE_ADDR} \
+        --tx-in ${SCRIPT_UTXO} \
+        --tx-in-script-file ${SCRIPT_FILE} \
+        --tx-in-datum-file $WORK/plutus-scripts/${DATUM_HASH_FILE} \
+        --tx-in-redeemer-file $WORK/plutus-scripts/${REDEEMER_FILE} \
+        --tx-in ${COLLATERAL_TX} \
+        --tx-in-collateral=${COLLATERAL_TX} \
+        --tx-out ${TO_WALLET_ADDRESS}+${PAYMENT} \
+        ${TO_WALLET_NAME_ARRAY} \
+        ${REQUIRED_SIGNER_ARRAY} \
+        --protocol-params-file $WORK/transactions/pparams.json \
+        --out-file $WORK/transactions/tx.draft)
+        ;;
+    *)
+        echo "Invalid input..."
+        exit 1
+        ;;
+esac
 
 # print the cardano transaction build
 # cat $build
