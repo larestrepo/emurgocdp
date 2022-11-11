@@ -70,7 +70,9 @@ Clone the repo plutus core git
 
     git clone https://github.com/input-output-hk/plutus-apps.git
     cd plutus-apps
-    git checkout v2022-04-06
+    git checkout v1.0.0-alpha1
+
+> It is possible that we will use the next-node branch which is the most recent one. I am testing it.
 
 Build Plutus PAB library core with Nix
 
