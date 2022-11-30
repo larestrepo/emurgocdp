@@ -41,7 +41,9 @@ library
     import: lang
     
     exposed-modules:
-      Simple.Simple
+      Simple.Simple,
+      Simple.SimpleType,
+      Simple.OffChainType
 
 
 -- Plutus dependencies
@@ -71,3 +73,27 @@ library
       serialise -any,
       base16-bytestring,
     hs-source-dirs: src
+
+
+test-suite plutus-tests
+  import: lang
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  other-modules:
+    Spec.EmulatorSimpleType
+  build-depends:
+    plutus-tx -any,
+    plutus-tx-plugin,
+    plutus-contract -any,
+    plutus-pab -any,
+    plutus-ledger -any,
+    cardano-developer -any,
+    data-default,
+  build-depends:
+    base >=4.9 && <5,
+    tasty -any,
+    tasty-hunit -any,
+    text -any,
+    tasty-hedgehog >=0.2.0.0,
+    freer-extras -any,

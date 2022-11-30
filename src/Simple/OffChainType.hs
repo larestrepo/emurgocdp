@@ -9,7 +9,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
 
-module Simple.OffChainTypes where
+module Simple.OffChainType where
 
 -- Haskell imports
 import qualified Control.Monad            as Monad (void)
@@ -58,19 +58,25 @@ produce value = do
     PlutusContract.logInfo @P.String "------------------------Transaction processed------------------------"
         
 
-
 consume :: forall w s e. PlutusContract.AsContractError e => Integer -> PlutusContract.Contract w s e ()
 consume redeem = do 
-    if redeem == 100 -- What do you think about this
+    if redeem == 100
         then do 
-                utxos <- PlutusContract.utxosAt OnChain.simpleAddress
-                let orefs = fst <$> Map.toList utxos
-                    lookups = Constraints.unspentOutputs utxos P.<>
-                            Constraints.plutusV2OtherScript OnChain.validator
-                    tx :: Constraints.TxConstraints Void.Void Void.Void
-                    tx      = mconcat [Constraints.mustSpendScriptOutput oref $ ScriptsLedger.Redeemer $ PlutusTx.toBuiltinData redeem | oref <- orefs]
-                submittedTx <- PlutusContract.submitTxConstraintsWith @Void.Void lookups tx
-                Monad.void $ PlutusContract.awaitTxConfirmed $ LedgerTx.getCardanoTxId submittedTx
-                PlutusContract.logInfo @P.String "Correct guess "
+            utxos <- PlutusContract.utxosAt OnChain.simpleAddress
+            let orefs = fst <$> Map.toList utxos
+                lookups = Constraints.unspentOutputs utxos P.<>
+                        Constraints.plutusV2OtherScript OnChain.validator
+                tx :: Constraints.TxConstraints Void.Void Void.Void
+                tx      = mconcat [Constraints.mustSpendScriptOutput oref $ ScriptsLedger.Redeemer $ PlutusTx.toBuiltinData redeem | oref <- orefs]
+            submittedTx <- PlutusContract.submitTxConstraintsWith @Void.Void lookups tx
+            Monad.void $ PlutusContract.awaitTxConfirmed $ LedgerTx.getCardanoTxId submittedTx
+            PlutusContract.logInfo @P.String "Correct guess "
 
         else PlutusContract.logInfo @P.String "Not correct"
+
+
+endpoints :: PlutusContract.Contract () SimpleTypeSchema DT.Text ()
+endpoints = PlutusContract.awaitPromise  (produce' `PlutusContract.select` consume') >> endpoints
+    where 
+        produce' = PlutusContract.endpoint @"produce" produce
+        consume' = PlutusContract.endpoint @"consume" consume
