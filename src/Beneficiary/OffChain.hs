@@ -23,6 +23,7 @@ import qualified Data.OpenApi.Schema                 as DataOpenApiSchema (ToSch
 import qualified Prelude                  as P
 import qualified Data.Map                 as Map
 import qualified Data.Text                           as DataText (Text)
+import qualified Control.Lens                                           as ControlLens
 
 -- Plutus imports
 
@@ -43,7 +44,6 @@ import qualified Beneficiary.OnChain as OnChain
 
 data ProduceParams = ProduceParams
     {
-        
         ppBeneficiary :: Ledger.PaymentPubKeyHash
         , ppDeadline :: LedgerApiV2.POSIXTime
         , ppGuess :: Integer
@@ -70,7 +70,7 @@ produce pp = do
             }
         value = ppAmount pp
     PlutusContract.logInfo @P.String "------------------------produce start initialize------------------------"
-    let tx = Constraints.mustPayToOtherScript (OnChain.simpleHash) (ScriptsLedger.Datum $ PlutusTx.toBuiltinData d) (lovelaceValueOf value)
+    let tx = Constraints.mustPayToOtherScriptWithDatumHash (OnChain.simpleHash) (ScriptsLedger.Datum $ PlutusTx.toBuiltinData d) (lovelaceValueOf value)
         lookups = Constraints.plutusV2OtherScript OnChain.validator
 
     submittedTx <- PlutusContract.submitTxConstraintsWith @OnChain.Benef lookups tx
@@ -82,57 +82,55 @@ consume :: forall w s. ConsumeParams -> PlutusContract.Contract w s DataText.Tex
 consume ConsumeParams{..} = do 
 
     pkh <- PlutusContract.ownFirstPaymentPubKeyHash
-    now <- PlutusContract.currentTime
-    maybeutxo <- findUtxoInValidator pkh getRedeem now
+    (_ , tconstraint) <- PlutusContract.currentNodeClientTimeRange
+    maybeutxo <- findUtxoInValidator pkh getRedeem tconstraint
     case maybeutxo of 
         Nothing -> PlutusContract.logInfo @P.String $ TextPrintf.printf "Not possible to retrieve"
         Just (oref, o) -> do
-            PlutusContract.logInfo @P.String $ TextPrintf.printf "Redeem utxos %s - with timing now at %s:" (P.show oref) (P.show $ now)
+            PlutusContract.logInfo @P.String $ TextPrintf.printf "Redeem utxos %s - with timing tconstraint at %s:" (P.show oref) (P.show $ tconstraint)
             let r = OnChain.Redeem{ OnChain.redeem = getRedeem }
                 lookups = Constraints.unspentOutputs (Map.singleton oref o) P.<>
                           Constraints.plutusV2OtherScript OnChain.validator
                 tx = Constraints.mustSpendScriptOutput oref (ScriptsLedger.Redeemer $ PlutusTx.toBuiltinData r) P.<>
-                     Constraints.mustValidateIn (LedgerApiV2.from now)
+                     Constraints.mustValidateIn (LedgerApiV2.from tconstraint)
             submittedTx <- PlutusContract.submitTxConstraintsWith @OnChain.Benef lookups tx
             Monad.void $ PlutusContract.awaitTxConfirmed $ LedgerTx.getCardanoTxId submittedTx
 
 --Utils file functions
-getDatum :: (LedgerApiV2.TxOutRef, LedgerTx.ChainIndexTxOut) -> Maybe OnChain.Beneficiary
+getDatum :: (LedgerApiV2.TxOutRef, LedgerTx.DecoratedTxOut) -> Maybe OnChain.Beneficiary
 getDatum (_, o) = do
-    let 
-        datHashOrDatum = LedgerTx._ciTxOutScriptDatum o
+    (_, datumFromQuery) <- o ControlLens.^? LedgerTx.decoratedTxOutDatum
+    LedgerApiV2.Datum e <- datumFromQuery ControlLens.^? LedgerTx.datumInDatumFromQuery
 
-    LedgerApiV2.Datum e <- snd datHashOrDatum
-    
     case (LedgerApiV2.fromBuiltinData e :: Maybe OnChain.Beneficiary) of    
         Nothing -> Nothing
         d -> d
 
-checkUTXO :: (LedgerApiV2.TxOutRef, LedgerTx.ChainIndexTxOut) -> Ledger.PaymentPubKeyHash ->Integer -> LedgerApiV2.POSIXTime -> Bool
-checkUTXO (oref,o) ppkh n now = do
+checkUTXO :: (LedgerApiV2.TxOutRef, LedgerTx.DecoratedTxOut) -> Ledger.PaymentPubKeyHash ->Integer -> LedgerApiV2.POSIXTime -> Bool
+checkUTXO (oref,o) ppkh n tconstraint = do
     case getDatum (oref,o) of
         Nothing -> False
         Just OnChain.Beneficiary{..}
-            | beneficiary == ppkh && guess == n && now >= deadline -> True
+            | beneficiary == ppkh && guess == n && tconstraint >= deadline -> True
             | otherwise                                            -> False
 
-findUTXO :: [(LedgerApiV2.TxOutRef, LedgerTx.ChainIndexTxOut)] -> Ledger.PaymentPubKeyHash -> Integer -> LedgerApiV2.POSIXTime -> (Maybe (LedgerApiV2.TxOutRef, LedgerTx.ChainIndexTxOut))
+findUTXO :: [(LedgerApiV2.TxOutRef, LedgerTx.DecoratedTxOut)] -> Ledger.PaymentPubKeyHash -> Integer -> LedgerApiV2.POSIXTime -> (Maybe (LedgerApiV2.TxOutRef, LedgerTx.DecoratedTxOut))
 findUTXO [] _ _ _ = Nothing
-findUTXO [(oref,o)] ppkh n now  = do
-    if checkUTXO (oref, o) ppkh n now then 
+findUTXO [(oref,o)] ppkh n tconstraint  = do
+    if checkUTXO (oref, o) ppkh n tconstraint then 
         return (oref,o)
     else 
         Nothing
-findUTXO ((oref,o):xs) ppkh n now
-    | checkUTXO (oref , o)  ppkh n now = return (oref,o)
-    | otherwise = findUTXO xs ppkh n now
+findUTXO ((oref,o):xs) ppkh n tconstraint
+    | checkUTXO (oref , o)  ppkh n tconstraint = return (oref,o)
+    | otherwise = findUTXO xs ppkh n tconstraint
 
-findUtxoInValidator :: Ledger.PaymentPubKeyHash -> Integer -> LedgerApiV2.POSIXTime -> PlutusContract.Contract w s DataText.Text (Maybe (LedgerApiV2.TxOutRef, LedgerTx.ChainIndexTxOut))
-findUtxoInValidator ppkh n now = do
+findUtxoInValidator :: Ledger.PaymentPubKeyHash -> Integer -> LedgerApiV2.POSIXTime -> PlutusContract.Contract w s DataText.Text (Maybe (LedgerApiV2.TxOutRef, LedgerTx.DecoratedTxOut))
+findUtxoInValidator ppkh n tconstraint = do
     utxos <- PlutusContract.utxosAt OnChain.simpleAddress
     let 
         xs = [ (oref, o) | (oref, o) <- Map.toList utxos ]
-        out = findUTXO xs ppkh n now
+        out = findUTXO xs ppkh n tconstraint
     return out
 
 endpoints :: PlutusContract.Contract () BenefTypeSchema DataText.Text ()

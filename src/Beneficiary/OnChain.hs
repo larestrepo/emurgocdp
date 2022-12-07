@@ -51,6 +51,7 @@ benefValidator d r context =
     traceIfFalse "Failure to guess" (guess d == redeem r) &&
     traceIfFalse "Not signed by beneficiary" signedByBeneficiary &&
     traceIfFalse "Deadline not yet reached" deadlinepassed
+    
     where 
         txinfo :: Contexts.TxInfo 
         txinfo = Contexts.scriptContextTxInfo context
@@ -60,8 +61,6 @@ benefValidator d r context =
 
         deadlinepassed :: Bool 
         deadlinepassed = LedgerIntervalV1.contains (LedgerIntervalV1.from (deadline d)) (Contexts.txInfoValidRange txinfo)
-
-
 
 
 benefCompile :: Scripts.TypedValidator Benef 
