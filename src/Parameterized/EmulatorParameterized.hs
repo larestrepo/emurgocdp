@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds        #-}
 
-module Beneficiary.EmulatorBeneficiary where
+module Parameterized.EmulatorParameterized where
 
 import Control.Monad.Freer.Extras as Extras
 import Data.Functor               (void)
@@ -12,7 +12,7 @@ import Data.Default               (Default (..))
 import qualified Plutus.Trace.Emulator as Emulator
 import Ledger.TimeSlot as TimeSlot
 
-import qualified Beneficiary.OffChain as OffChain
+import qualified Parameterized.OffChain as OffChain
 
 
 test :: IO ()
@@ -36,18 +36,14 @@ myTrace = do
     --3. wrong guess
     void $ waitUntilSlot 2
     Emulator.callEndpoint @"consume" h2 $ OffChain.ConsumeParams {
+        OffChain.gpCreator = Wallet.mockWalletPaymentPubKeyHash $ knownWallet 1,
+        OffChain.gpDeadline = TimeSlot.slotToBeginPOSIXTime def 20,
         OffChain.getRedeem = 3000
     }
     void $ waitUntilSlot 20
-    Emulator.callEndpoint @"consume" h3 $ OffChain.ConsumeParams {
-        OffChain.getRedeem = 3000
-    }
-    void $ waitUntilSlot 1
-    Emulator.callEndpoint @"consume" h2 $  OffChain.ConsumeParams {
-        OffChain.getRedeem = 20000
-    }
-    void $ waitUntilSlot 1
-    Emulator.callEndpoint @"consume" h2 $  OffChain.ConsumeParams {
+    Emulator.callEndpoint @"consume" h2 $ OffChain.ConsumeParams {
+        OffChain.gpCreator = Wallet.mockWalletPaymentPubKeyHash $ knownWallet 3,
+        OffChain.gpDeadline = TimeSlot.slotToBeginPOSIXTime def 20,
         OffChain.getRedeem = 3000
     }
     s <- waitNSlots 1

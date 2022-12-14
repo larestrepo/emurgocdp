@@ -22,10 +22,12 @@ import qualified Plutus.V1.Ledger.Interval                            as LedgerI
 import qualified Ledger                                          
 import qualified PlutusTx
 import PlutusTx.Prelude
+import qualified Ledger.Ada                                      as Ada
 
 data Beneficiary = Beneficiary
     {
-        beneficiary :: Ledger.PaymentPubKeyHash
+        creator :: Ledger.PaymentPubKeyHash
+        , beneficiary :: Ledger.PaymentPubKeyHash
         , deadline :: LedgerApiV2.POSIXTime
         , guess :: Integer
     } 
@@ -50,7 +52,8 @@ benefValidator :: Beneficiary -> Redeem -> Contexts.ScriptContext -> Bool
 benefValidator d r context = 
     traceIfFalse "Failure to guess" (guess d == redeem r) &&
     traceIfFalse "Not signed by beneficiary" signedByBeneficiary &&
-    traceIfFalse "Deadline not yet reached" deadlinepassed
+    traceIfFalse "Deadline not yet reached" deadlinepassed &&
+    traceIfFalse "Royalties not provided" calculateRoyalties
     
     where 
         txinfo :: Contexts.TxInfo 
@@ -62,6 +65,8 @@ benefValidator d r context =
         deadlinepassed :: Bool 
         deadlinepassed = LedgerIntervalV1.contains (LedgerIntervalV1.from (deadline d)) (Contexts.txInfoValidRange txinfo)
 
+        calculateRoyalties :: Bool
+        calculateRoyalties = validateRoyalties d txinfo --(from the txinfo -> total amount of the txin to build the tx)
 
 benefCompile :: Scripts.TypedValidator Benef 
 benefCompile = Scripts.mkTypedValidator @Benef 
@@ -80,3 +85,20 @@ simpleHash = V2UtilsScripts.validatorHash validator
 
 simpleAddress :: Ledger.Address
 simpleAddress = Ledger.scriptHashAddress simpleHash
+
+{-# INLINABLE validateRoyalties #-}
+validateRoyalties :: Beneficiary -> Contexts.TxInfo -> Bool
+validateRoyalties d txinfo = compareValues (getValuePaidToCreator d txinfo) (getTotalInputValue txinfo)
+
+
+{-# INLINABLE getValuePaidToCreator #-}
+getValuePaidToCreator :: Beneficiary -> Contexts.TxInfo -> Ada.Ada 
+getValuePaidToCreator d txinfo = Ada.fromValue $ Contexts.valuePaidTo txinfo (Ledger.unPaymentPubKeyHash (creator d))
+
+{-# INLINABLE getTotalInputValue #-}
+getTotalInputValue :: Contexts.TxInfo -> Ada.Ada
+getTotalInputValue txinfo = Ada.fromValue $ Contexts.valueSpent txinfo
+
+{-# INLINABLE compareValues #-}
+compareValues :: Ada.Ada -> Ada.Ada -> Bool
+compareValues vToCreator vTotal = vToCreator >= vTotal `Ada.divide` 10
