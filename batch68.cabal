@@ -45,7 +45,11 @@ library
       Simple.SimpleType,
       Simple.OffChainType,
       Beneficiary.OnChain,
-      Beneficiary.OffChain
+      Beneficiary.OffChain,
+      Parameterized.OnChain,
+      Parameterized.OffChain,
+      Parameterized.Deploy,
+      Parameterized.EmulatorParameterized,
 
 
 -- Plutus dependencies
