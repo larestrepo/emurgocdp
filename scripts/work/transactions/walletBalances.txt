@@ -1,3 +1,8 @@
                            TxHash                                 TxIx        Amount
 --------------------------------------------------------------------------------------
-435b75c0e80371f35d640555d37d5744712b1847f3bbf8d6c514706b0c489a73     2        9523318 lovelace + TxOutDatumNone
+12c106c110dd69830af64b6c2b1a2dcbb73aae7742ddfe6b469b5ab9a49730a5     1        3538051 lovelace + TxOutDatumNone
+435b75c0e80371f35d640555d37d5744712b1847f3bbf8d6c514706b0c489a73     1        6000000 lovelace + TxOutDatumNone
+68634985b088f2c3c9d262f0646db0a299424b49a682c4995387d8f6374ad512     0        18731260 lovelace + TxOutDatumNone
+68634985b088f2c3c9d262f0646db0a299424b49a682c4995387d8f6374ad512     1        9850118313 lovelace + TxOutDatumNone
+e40b108f0eae3f2ebacf36c55636b249b0d8b1665126801c0bac73cd37f8ce05     1        5000000 lovelace + TxOutDatumNone
+f3db80d707e9df4bb6edf9b267839e0953474fd006e76e8ddeb125d057599884     1        14834279 lovelace + TxOutDatumNone

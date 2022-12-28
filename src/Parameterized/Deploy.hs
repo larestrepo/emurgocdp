@@ -32,7 +32,7 @@ beneficiaryHash :: B.ByteString
 beneficiaryHash = "75eacb8808f937e42cde4312d2d4bb42bd1cbfca379bbe90a3ec0383"
 
 paramDeadline :: Ledger.POSIXTime
-paramDeadline = 1671159023000
+paramDeadline = 1671763390000
 
 parameters :: OnChain.BeneParam
 parameters = OnChain.BeneParam

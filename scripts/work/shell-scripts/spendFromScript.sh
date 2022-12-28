@@ -146,7 +146,7 @@ case $input in
         # WITNESS_ADDR=$SELECTED_WALLET_ADDR
         # WITNESS_NAME=${SELECTED_WALLET_NAME}
 
-        build=($CARDANO_CLI transaction build \
+        $CARDANO_CLI transaction build \
         --babbage-era \
         --cardano-mode \
         --testnet-magic $TESTNET_MAGIC \
@@ -163,7 +163,7 @@ case $input in
         ${TO_WALLET_NAME_ARRAY} \
         ${REQUIRED_SIGNER_ARRAY} \
         --protocol-params-file $WORK/transactions/pparams.json \
-        --out-file $WORK/transactions/tx.draft)
+        --out-file $WORK/transactions/tx.draft
         ;;
     [nN][oO]|[nN])
         $CARDANO_CLI transaction build \

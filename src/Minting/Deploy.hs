@@ -34,7 +34,7 @@ tokenName :: B.ByteString
 tokenName = "MyTestEMG"
 
 utxo :: String 
-utxo = "f3db80d707e9df4bb6edf9b267839e0953474fd006e76e8ddeb125d057599884#0"
+utxo = "31a08c85b4971dd205093c529a7042376a16175d63f34bd86a36a4340c3d4260#1"
 
 parameters :: OnChain.TokenParam
 parameters = OnChain.TokenParam
